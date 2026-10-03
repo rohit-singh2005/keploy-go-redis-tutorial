@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const sections = [
   { id: "overview", label: "Overview" },
@@ -15,34 +15,57 @@ const sections = [
   { id: "step-8-run-the-tests", label: "8. Run the Tests" },
   { id: "understanding-the-output", label: "Understanding Output" },
   { id: "what-just-happened", label: "What Just Happened?" },
-  { id: "next-steps", label: "Next Steps" },
+  { id: "errors-and-feedback", label: "Errors & Fixes" },
 ];
 
 export function Sidebar() {
   const [active, setActive] = useState("");
   const [open, setOpen] = useState(false);
+  const clickedRef = useRef<string | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActive(entry.target.id);
-          }
-        });
-      },
-      { rootMargin: "-20% 0% -70% 0%" }
-    );
+    const handleScroll = () => {
+      // If the user just clicked a link, don't override active for a short window
+      if (clickedRef.current) return;
 
-    sections.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
+      const scrollBottom = window.scrollY + window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
 
-    return () => observer.disconnect();
+      // If within 80px of the bottom, force-activate the last section
+      if (docHeight - scrollBottom < 80) {
+        setActive(sections[sections.length - 1].id);
+        return;
+      }
+
+      // Otherwise find whichever section's top is closest to 25% down the viewport
+      const threshold = window.scrollY + window.innerHeight * 0.25;
+      let best = sections[0].id;
+      for (const { id } of sections) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top + window.scrollY <= threshold) {
+          best = id;
+        }
+      }
+      setActive(best);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll(); // run once on mount
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const scrollTo = (id: string) => {
+    // Immediately highlight on click — no waiting for scroll observer
+    setActive(id);
+    clickedRef.current = id;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    // Release the click lock after scroll settles
+    timerRef.current = setTimeout(() => {
+      clickedRef.current = null;
+    }, 1200);
+
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     setOpen(false);
   };

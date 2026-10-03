@@ -18,21 +18,21 @@ function CopyButton({ text }: { text: string }) {
   };
 
   return (
-    <button className="code-block-copy" onClick={handleCopy} aria-label="Copy code">
+    <button className="code-copy-btn" onClick={handleCopy} aria-label="Copy code">
       {copied ? (
         <>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Copied!
+          <span>Copied!</span>
         </>
       ) : (
         <>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
-          Copy
+          <span>Copy</span>
         </>
       )}
     </button>
@@ -41,14 +41,19 @@ function CopyButton({ text }: { text: string }) {
 
 export function HighlightedCode({ className, children }: CodeProps) {
   const match = /language-(\w+)/.exec(className || "");
-  const lang = match ? match[1] : "text";
+  const lang = match ? match[1] : "";
   const code = String(children).replace(/\n$/, "");
 
-  if (match) {
+  if (match && lang !== "text") {
     return (
-      <div className="code-block-wrapper">
-        <div className="code-block-header">
-          <span className="code-block-language">{lang}</span>
+      <div className="code-block">
+        <div className="code-block-chrome">
+          <div className="code-chrome-dots">
+            <span className="cdot cdot-r" />
+            <span className="cdot cdot-y" />
+            <span className="cdot cdot-g" />
+          </div>
+          <span className="code-chrome-lang">{lang}</span>
           <CopyButton text={code} />
         </div>
         <SyntaxHighlighter
@@ -56,12 +61,14 @@ export function HighlightedCode({ className, children }: CodeProps) {
           style={vscDarkPlus}
           customStyle={{
             margin: 0,
-            borderRadius: "0 0 10px 10px",
-            fontSize: "0.875rem",
-            lineHeight: "1.6",
+            borderRadius: "0 0 12px 12px",
+            fontSize: "0.855rem",
+            lineHeight: "1.65",
             background: "#0d1117",
+            padding: "1.25rem 1.5rem",
           }}
-          showLineNumbers={lang !== "bash" && lang !== "text" && lang !== "powershell"}
+          showLineNumbers={!["bash", "text", "powershell"].includes(lang)}
+          wrapLines
         >
           {code}
         </SyntaxHighlighter>
@@ -69,7 +76,5 @@ export function HighlightedCode({ className, children }: CodeProps) {
     );
   }
 
-  return (
-    <code className="inline-code">{children}</code>
-  );
+  return <code className="inline-code">{children}</code>;
 }

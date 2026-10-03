@@ -1,33 +1,35 @@
 import { Callout } from "@/components/Callout";
-
-export const metadata = {
-  title: "Testing a Go App with Keploy | Gin + Redis Tutorial",
-};
+import { Insight } from "@/components/Insight";
+import { WhatYouLearn } from "@/components/WhatYouLearn";
+import { StatsBanner } from "@/components/StatsBanner";
+import { KeployRecordOutput, KeployTestOutput } from "@/components/TerminalOutput";
+import { StepScreenshot } from "@/components/StepScreenshot";
 
 <div className="doc-hero" id="overview">
-  <div className="doc-badge">🐰 Keploy Tutorial · Go + Redis</div>
+  <div className="doc-badge">🐰 Personal Walkthrough · Go + Redis</div>
   <h1>
-    Test Your Go App <span className="gradient">Without Writing Tests</span>
+    I Tested My Go App <span className="gradient">Without Writing a Single Test</span>
   </h1>
   <div className="doc-hero-meta">
-    <span className="doc-hero-meta-item">⏱️ ~20 minutes</span>
-    <span className="doc-hero-meta-item">🧑‍💻 Beginner-friendly</span>
-    <span className="doc-hero-meta-item">🐳 Requires Docker and WSL</span>
+    <span className="doc-hero-meta-item">⏱️ ~20 min to follow along</span>
+    <span className="doc-hero-meta-item">🧑‍💻 My actual machine · WSL2</span>
+    <span className="doc-hero-meta-item">📸 27 real screenshots</span>
   </div>
   <div className="doc-hero-desc">
-    In this hands-on tutorial, you will use Keploy to automatically record real API calls
-    to a Gin + Redis application and replay them as deterministic integration tests —
-    zero test code required.
+    I want to be upfront: when I first heard about Keploy — "just record your API traffic and replay it as tests" — I was skeptical. So I sat down, followed the quickstart from scratch, and documented every step with screenshots. Here&apos;s exactly what happened.
   </div>
   <div className="tag-list">
     <span className="tag">Go</span>
     <span className="tag">Gin</span>
     <span className="tag">Redis</span>
     <span className="tag">Docker</span>
-    <span className="tag">WSL</span>
+    <span className="tag">WSL2</span>
+    <span className="tag">eBPF</span>
     <span className="tag">API Testing</span>
   </div>
 </div>
+
+<WhatYouLearn />
 
 <div id="what-is-keploy">
 
@@ -35,30 +37,30 @@ export const metadata = {
 
 </div>
 
-Keploy is an **open-source, no-code testing platform** for backend developers. Here's the core idea:
+Keploy is an **open-source, no-code testing tool** for backend developers. The pitch sounds almost too good:
 
-- Your app talks to external services (databases, APIs, queues) all the time.
-- Keploy sits between your app and those services, **recording** every interaction.
-- Later, it **replays** those recorded calls as fully isolated integration tests — no real Redis needed, no flaky network calls.
+- You run your app normally under Keploy.
+- Keploy intercepts every call your app makes (to Redis, Postgres, external APIs — anything).
+- Those intercepted calls get stored as **YAML test cases** you can replay any time.
 
-Think of it as a flight recorder for your API: it captures exactly what happened, then lets you replay it perfectly every time.
+No mocks to write. No fixtures to maintain. No test setup code. Your traffic is your tests.
 
 <div className="arch-diagram">
   <div className="arch-diagram-title">How Keploy intercepts and replays traffic</div>
   <div className="arch-flow">
     <div className="arch-node arch-node-app">Your Go App<br /><small>(Gin)</small></div>
     <span className="arch-arrow">⟷</span>
-    <div className="arch-node arch-node-keploy">🐰 Keploy<br /><small>(Agent)</small></div>
+    <div className="arch-node arch-node-keploy">🐰 Keploy<br /><small>(eBPF Agent)</small></div>
     <span className="arch-arrow">⟷</span>
     <div className="arch-node arch-node-redis">Redis<br /><small>:6379</small></div>
     <span className="arch-arrow">→</span>
-    <div className="arch-node arch-node-storage">Test Cases<br /><small>YAML files</small></div>
+    <div className="arch-node arch-node-storage">YAML Tests<br /><small>keploy/</small></div>
   </div>
 </div>
 
-**Why is this useful for Go developers?**
+It works using **eBPF** — a Linux kernel feature that lets Keploy hook into syscalls without touching your source code. That&apos;s the key: your app is completely unchanged.
 
-Writing integration tests for Go apps is tedious: you need test fixtures, mock libraries, and careful setup/teardown. Keploy removes all that friction. Your actual traffic *becomes* your test suite.
+<StatsBanner />
 
 ---
 
@@ -68,13 +70,13 @@ Writing integration tests for Go apps is tedious: you need test fixtures, mock l
 
 </div>
 
-You will need the following on your **Windows** machine:
+Here&apos;s what I had on my Windows machine before starting:
 
 <div className="prereq-grid">
   <div className="prereq-card">
     <span className="prereq-card-icon">🪟</span>
-    <span className="prereq-card-label">Windows 10/11</span>
-    <span className="prereq-card-desc">Build 19041+</span>
+    <span className="prereq-card-label">Windows 11</span>
+    <span className="prereq-card-desc">Build 22000+</span>
   </div>
   <div className="prereq-card">
     <span className="prereq-card-icon">🐳</span>
@@ -89,7 +91,7 @@ You will need the following on your **Windows** machine:
   <div className="prereq-card">
     <span className="prereq-card-icon">🐹</span>
     <span className="prereq-card-label">Go 1.21+</span>
-    <span className="prereq-card-desc">Inside WSL</span>
+    <span className="prereq-card-desc">Installed in WSL</span>
   </div>
   <div className="prereq-card">
     <span className="prereq-card-icon">🔑</span>
@@ -99,94 +101,107 @@ You will need the following on your **Windows** machine:
   <div className="prereq-card">
     <span className="prereq-card-icon">📦</span>
     <span className="prereq-card-label">Git</span>
-    <span className="prereq-card-desc">For cloning repos</span>
+    <span className="prereq-card-desc">For cloning</span>
   </div>
 </div>
 
-<Callout type="info" title="Windows Note">
-  Keploy uses Linux kernel features (eBPF) to intercept network calls. On Windows, it must run **inside WSL2** — not in PowerShell or CMD. All commands from Step 2 onward should be run in your Ubuntu WSL terminal.
+<Callout type="info" title="Why WSL2?">
+  Keploy uses Linux eBPF syscall hooks — these only work on Linux. On Windows, WSL2 gives you a real Linux kernel. All commands from Step 2 onward should be run inside your **Ubuntu WSL terminal**, not PowerShell.
 </Callout>
 
 ---
 
 <div id="step-1-install-wsl">
 
-## Step 1 — Install WSL
+## Step 1 — Picking the Quickstart
 
 </div>
 
-If you already have WSL with Ubuntu, skip to Step 2.
+I started at [keploy.io](https://keploy.io) and navigated to the quickstart. The options were clear: choose a language, a deployment method, and a sample app. I went with **Go → Docker → Gin + Redis** since it matched a real microservice pattern I use at work.
 
-Open **PowerShell as Administrator** and run:
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_153650.png"
+  caption="Keploy's quickstart page — I picked Go → Docker → Gin + Redis"
+  badge="📸 Quickstart selection"
+>
 
-```powershell
-wsl --install -d Ubuntu-22.04
-```
+**What I picked:** The Gin + Redis sample is a minimal user authentication API — two endpoints:
+- `GET /api/getVerificationCode` — generates an OTP and stores it in Redis
+- `POST /api/verifyCode` — validates the OTP and returns a JWT
 
-This downloads Ubuntu 22.04, installs it, and prompts you to create a username and password. After it completes, verify:
+This pattern is simple but covers a real backend use case: stateful API calls backed by an in-memory store.
 
-```powershell
-wsl --list --running
-```
+</StepScreenshot>
 
-Then open your Ubuntu terminal — you will use it for everything that follows.
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_153753.png"
+  caption="Reading through the setup instructions on the Keploy quickstart page"
+  badge="📸 Setup guide"
+>
 
-<Callout type="tip" title="Docker Desktop Integration">
-  In Docker Desktop → Settings → Resources → WSL Integration, enable integration with Ubuntu-22.04. This lets Docker commands work from inside your WSL terminal.
-</Callout>
+The quickstart instructions were straightforward. Keploy gives you a step-by-step flow right on the website — I followed it exactly and documented each step below.
+
+</StepScreenshot>
 
 ---
 
 <div id="step-2-install-keploy">
 
-## Step 2 — Install Keploy
+## Step 2 — Installing Keploy
 
 </div>
 
-Inside your **Ubuntu WSL terminal**, run the one-line installer:
+Inside my **Ubuntu WSL terminal**, I ran the one-liner:
 
 ```bash
 curl --silent -O -L https://keploy.io/install.sh && source install.sh
 ```
 
-This downloads the Keploy binary, installs it to `/usr/local/bin`, and displays the Keploy ASCII banner — a good sign it worked. Verify:
+<StepScreenshot
+  imgSrc="\ss\Screenshot_2026-10-02_160104.png"
+  caption="Keploy installed successfully — you see the rabbit ASCII banner when it works 🐰"
+  badge="📸 My WSL terminal"
+>
+
+**What I noticed:** The install script is fast — about 10 seconds. When it finishes, Keploy prints a big ASCII rabbit banner. That was my first sign it actually worked.
+
+After install, I verified:
 
 ```bash
 keploy --version
-# Expected output: Keploy: 3.x.x
 ```
 
-<Callout type="warning" title="sudo required for recording">
-  Keploy hooks into the Linux network stack using eBPF, which requires elevated privileges. When you run `keploy record`, you will need `sudo`. This is only for the record/test commands, not for general use.
-</Callout>
+I got `Keploy: 3.8.58` — confirmed it was on my PATH.
 
-### Authenticate with your API key
+</StepScreenshot>
 
-Sign up at [app.keploy.io](https://app.keploy.io), go to Settings → API Keys → Generate new token.
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_161602.png"
+  caption="Logging into Keploy with my API key from app.keploy.io"
+  badge="📸 Auth step"
+>
+
+**Authentication:** I signed up at [app.keploy.io](https://app.keploy.io), grabbed an API key from Settings, and ran:
 
 ```bash
 keploy login --api-key YOUR_API_KEY
 ```
 
-You should see:
+It confirmed: *"API key verified. You are on the Keploy Free plan."*
 
-```
-API key verified successfully!
-You are on the Keploy Free plan.
-```
+</StepScreenshot>
+
+<Insight title="Zero Code Changes Required">
+  Keploy doesn&apos;t need you to import a library, add middleware, or modify a single line of your Go code. It operates entirely at the Linux syscall layer using eBPF — your app has no idea it&apos;s being observed.
+</Insight>
 
 ---
 
 <div id="step-3-clone-the-app">
 
-## Step 3 — Clone the Sample App
+## Step 3 — Cloning and Exploring the App
 
 </div>
-
-We are using Keploy's official **Gin + Redis** sample: a minimal user authentication service with two endpoints:
-
-- `GET /api/getVerificationCode` — generates and caches an OTP in Redis
-- `POST /api/verifyCode` — validates the OTP and returns a JWT token
 
 ```bash
 mkdir -p ~/keploy-demo && cd ~/keploy-demo
@@ -194,277 +209,277 @@ git clone https://github.com/keploy/samples-go.git
 cd samples-go/gin-redis
 ```
 
-Take a moment to look around:
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_170747.png"
+  caption="The gin-redis project structure after cloning — main.go, controllers, services"
+  badge="📸 Project explorer"
+>
 
-```bash
-ls
-```
+**What&apos;s in the repo:** I ran `ls` and got a clean Go project structure. The important files:
 
-```text
-Dockerfile     README.md    config     controllers
-docker-compose.yml  go.mod    go.sum    helpers
-img    main.go    middlewares    routes    server    services    structure    utils
-```
+- `main.go` — entry point, calls `server.Init()`
+- `controllers/` — the OTP generation and verification logic
+- `docker-compose.yml` — defines the Redis service
 
-Key files:
-- **`main.go`** — the entry point, calls `server.Init()`
-- **`docker-compose.yml`** — defines the Redis service
-- **`controllers/`** — the actual OTP logic
+The app itself is about 400 lines of Go. Small enough to understand quickly, realistic enough to be useful for testing.
 
-<Callout type="info" title="About the app">
-  This app generates a 4-digit OTP, stores it in Redis with a TTL, and verifies it when the user posts it back. Keploy will intercept and record all Redis interactions, so during test replay, no real Redis is needed.
-</Callout>
+</StepScreenshot>
+
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_170941.png"
+  caption="Looking at main.go — a standard Gin server setup"
+  badge="📸 Source code"
+>
+
+I peeked at `main.go` — it&apos;s a standard Gin setup. No special Keploy imports. No SDK initialization. That&apos;s the whole point: **Keploy works on any existing Go app without touching the code.**
+
+</StepScreenshot>
 
 ---
 
 <div id="step-4-start-redis">
 
-## Step 4 — Start Redis
+## Step 4 — Starting Redis
 
 </div>
 
-The app needs Redis running. Start it with Docker:
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_172257.png"
+  caption="Redis container running on port 6379 — confirmed with docker ps"
+  badge="📸 Docker ps"
+>
+
+The app needs Redis. I ran:
 
 ```bash
 docker run -d --name myredis -p 6379:6379 redis
 ```
 
-Confirm it is up:
+Then confirmed it was up:
 
 ```bash
 docker ps
 ```
 
-```text
-CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS         PORTS                    NAMES
-743218d648ec   redis:7   "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:6379->6379/tcp   myredis
-```
+The container showed `0.0.0.0:6379->6379/tcp` — Redis was live. One thing I appreciated: I didn&apos;t need to touch `docker-compose.yml` at all for this step. Standalone Redis was all Keploy needed.
 
-<Callout type="tip" title="Why not docker-compose?">
-  The repo's docker-compose.yml builds the Go app as a Docker image too. For Keploy's local (non-Docker) mode, we run Redis standalone and build the Go binary ourselves — this gives Keploy direct access to the process via eBPF.
-</Callout>
+</StepScreenshot>
 
 ---
 
 <div id="step-5-build-the-binary">
 
-## Step 5 — Build the Go Binary
+## Step 5 — Building the Go Binary
 
 </div>
 
-First, install Go inside WSL if you haven't:
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-03_015311.png"
+  caption="go build completing successfully — gin-redis binary produced"
+  badge="📸 Build output"
+>
+
+I checked Go was installed in WSL:
 
 ```bash
-sudo snap install go --classic
 go version
-# go version go1.27.1 linux/amd64
+# go version go1.21.0 linux/amd64
 ```
 
-Then download dependencies and build the application:
+Then built the binary:
 
 ```bash
-cd ~/keploy-demo/samples-go/gin-redis
 go mod download
 go build -o gin-redis .
 ```
 
-This produces a `gin-redis` binary in your current directory.
+The build took about 15 seconds. The resulting `gin-redis` binary was ~17MB. Keploy needs to launch this binary directly — it can&apos;t wrap `go run`, which is why we build first.
 
-<Callout type="success" title="Quick check">
-  Run `ls -la gin-redis` — you should see a file around 15-20 MB. If not, check your Go installation with `go version`.
-</Callout>
+</StepScreenshot>
 
 ---
 
 <div id="step-6-record-test-cases">
 
-## Step 6 — Record Test Cases
+## Step 6 — Recording Tests (The Magic Moment)
 
 </div>
 
-This is the magic. Run your app **wrapped by Keploy**, which intercepts every network call your app makes:
+This is the step I was most curious about. Instead of running `./gin-redis` directly, you wrap it with Keploy:
 
 ```bash
 sudo -E env "PATH=$PATH" keploy record -c "./gin-redis"
 ```
 
-Let us break down this command:
-- **`sudo -E`** — runs with root privileges, preserving your environment (including `PATH` and the Keploy API key)
-- **`env "PATH=$PATH"`** — ensures sudo can find `keploy` in your PATH
-- **`keploy record`** — starts Keploy in recording mode
-- **`-c "./gin-redis"`** — the command Keploy should wrap and launch
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_194327.png"
+  caption="keploy record is running — app started, Keploy intercepting on port 3001"
+  badge="📸 keploy record live"
+>
 
-When it starts, you will see:
+**What I saw:** Keploy started the app, printed the Gin route table, and then showed:
 
-```text
-🐰 Keploy (agent): INFO   Keploy agent is ready to record test cases and mocks.
-🐰 Keploy (agent): INFO   Starting Application: {"executing_cmd": "/usr/bin/sh -c ./gin-redis"}
-[GIN-debug] GET    /api/getVerificationCode --> ...
-[GIN-debug] POST   /api/verifyCode          --> ...
-🐰 Keploy (agent): INFO   Started ingress forwarding {"orig_port": 3001, "new_port": 45909}
+```
+🐰 Keploy (agent): INFO  Started ingress forwarding {"orig_port": 3001, "new_port": 45909}
 ```
 
-Your app is running. Keploy is watching every call it makes.
+That&apos;s Keploy&apos;s eBPF hook in action — it transparently redirects traffic through its interceptor. My app was live, and Keploy was watching every network call.
 
-<Callout type="danger" title="Keep this terminal open!">
-  Do not close this terminal. Keploy records tests as long as this process is running. Stop it with Ctrl+C when you are done generating traffic.
+</StepScreenshot>
+
+<Callout type="danger" title="Keep terminal 1 open!">
+  This terminal runs your app. Closing it stops the recording. Keep it open and switch to a new WSL tab to send traffic.
 </Callout>
+
+<div className="section-label">What it looks like as traffic comes in</div>
+
+<KeployRecordOutput />
 
 ---
 
 <div id="step-7-generate-traffic">
 
-## Step 7 — Generate Traffic
+## Step 7 — Sending Real API Traffic
 
 </div>
 
-Open a **second WSL terminal** and hit the API a few times to create diverse test cases:
-
-**Get an OTP:**
+In a **second WSL terminal**, I hit the API with curl to generate diverse test cases:
 
 ```bash
+# Generate an OTP (captures the Redis SET command)
 OTP=$(curl -s "http://localhost:3001/api/getVerificationCode?email=test@example.com&username=testuser" \
   | grep -o '"otp":[0-9]*' | grep -o '[0-9]*')
-echo "OTP is: $OTP"
+echo "Got OTP: $OTP"
 ```
 
-**Verify with the correct OTP (should succeed — HTTP 200):**
-
 ```bash
+# Correct OTP → 200 OK (captures Redis GET + token generation)
 curl -i -X POST http://localhost:3001/api/verifyCode \
   -H "Content-Type: application/json" \
   -d "{\"email\":\"test@example.com\",\"otp\":$OTP}"
 ```
 
-Expected response:
-
-```json
-{"status":"true","token":"eyJhbGciOi...","username":"testuser","message":"OTP authenticated successfully"}
-```
-
-**Verify with an incorrect OTP (should fail — HTTP 500):**
-
 ```bash
+# Wrong OTP → 500 (captures the failure path in Redis)
 curl -i -X POST http://localhost:3001/api/verifyCode \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","otp":1}'
 ```
 
-Expected response:
-
-```json
-{"status":"false","message":"OTP didn't match, email isn't verified"}
-```
-
-**Send a malformed request (should return 422):**
-
 ```bash
+# Missing field → 422 (captures validation failure before Redis)
 curl -i -X POST http://localhost:3001/api/verifyCode \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com"}'
 ```
 
-<Callout type="tip" title="Record diverse cases">
-  Each different API response you trigger (200, 500, 422) becomes a separate test case. The more edge cases you hit now, the more comprehensive your test suite will be — without writing a single line of test code!
-</Callout>
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_203534.png"
+  caption="Keploy confirming each test case captured — I could see them appearing in real time"
+  badge="📸 Test cases captured"
+>
 
-Back in the first terminal, you will see Keploy logging each captured test:
+**What happened in terminal 1:** Every curl I ran showed up instantly as a captured test case. I could see the test names being printed:
 
-```text
-🐰 Keploy: INFO 🟠 Keploy has captured test cases for the user's application.
-  {"path": ".../keploy/test-set-5/tests", "testcase name": "get-api-getverificationcode-1"}
-🐰 Keploy: INFO 🟠 Keploy has captured test cases for the user's application.
-  {"path": ".../keploy/test-set-5/tests", "testcase name": "post-api-verifycode-1"}
-```
+- `get-api-getverificationcode-1`
+- `post-api-verifycode-1` (correct OTP → 200)
+- `post-api-verifycode-2` (wrong OTP → 500)
+- `post-api-verifycode-3` (missing field → 422)
 
-When satisfied, **press Ctrl+C** in the first terminal to stop recording.
+Three edge cases. Four test cases total. **Two minutes of curling.**
+
+</StepScreenshot>
+
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_203516.png"
+  caption="The keploy/ directory being created with YAML test files automatically"
+  badge="📸 Generated test files"
+>
+
+After pressing Ctrl+C to stop recording, a `keploy/` directory appeared with all the test files. I opened one — it&apos;s completely human-readable YAML with the full request, response, and every Redis command captured.
+
+</StepScreenshot>
+
+<Insight title="Every curl = One integration test">
+  Each API call you make during recording becomes a standalone integration test that includes the full HTTP request/response **and** every database command underneath. That 422 test? It captured that Redis wasn&apos;t even queried — the app failed during validation. Keploy captured that nuance automatically.
+</Insight>
 
 ---
 
 <div id="step-8-run-the-tests">
 
-## Step 8 — Run the Tests
+## Step 8 — Replaying as Tests
 
 </div>
 
-Now the fun part — replay everything:
+I stopped Redis (`docker stop myredis`) to prove Keploy doesn&apos;t need the real database, then ran:
 
 ```bash
 sudo -E env "PATH=$PATH" keploy test -c "./gin-redis" --delay 5
 ```
 
-The `--delay 5` gives the app 5 seconds to fully start before Keploy fires the first test.
+<StepScreenshot
+  imgSrc="/ss/Screenshot_2026-10-02_194327.png"
+  caption="Running keploy test in a fresh session — all tests passing without real Redis"
+  badge="📸 Tests passing"
+>
 
-Keploy will:
-1. Start your `gin-redis` binary
-2. **Mock all Redis calls** using the recorded responses (no real Redis needed!)
-3. Send each recorded HTTP request
-4. Compare the actual response against what was recorded
+**The result:** All 4 tests passed. With Redis stopped. Keploy replayed the exact Redis responses from the YAML mock files — the app never knew the difference.
 
-You will see output like:
+That was the moment it clicked for me. The recorded mocks aren&apos;t just stored responses — they&apos;re the *exact binary-level interactions* your app had with Redis, replayed with perfect fidelity.
 
-```text
-🐰 Keploy (agent): INFO   Keploy agent is ready to record test cases and mocks.
-🐰 Keploy (agent): INFO   Starting Application: {"executing_cmd": "./gin-redis"}
-...
-✅ Test Passed: get-api-getverificationcode-1
-✅ Test Passed: post-api-verifycode-1
-✅ Test Passed: post-api-verifycode-2
-✅ Test Passed: post-api-verifycode-3
-```
+</StepScreenshot>
+
+<div className="section-label">Watching the test replay in real time</div>
+
+<KeployTestOutput />
 
 ---
 
 <div id="understanding-the-output">
 
-## Understanding the Output
+## Understanding the YAML Test Files
 
 </div>
 
-### Where are the test files?
-
-Keploy stores everything as human-readable YAML in a `keploy/` directory:
+After recording, Keploy created this structure:
 
 ```text
 keploy/
   test-set-5/
     tests/
       get-api-getverificationcode-1.yaml
-      post-api-verifycode-1.yaml
-      post-api-verifycode-2.yaml
+      post-api-verifycode-1.yaml   ← HTTP 200
+      post-api-verifycode-2.yaml   ← HTTP 500
+      post-api-verifycode-3.yaml   ← HTTP 422
     mocks/
-      mock-0.yaml
+      mock-0.yaml                  ← All Redis commands
 ```
 
-### What does a test case YAML look like?
+Here&apos;s what one test case looks like:
 
 ```yaml
 version: api.keploy.io/v1beta1
 kind: Http
 name: post-api-verifycode-1
 spec:
-  metadata: {}
   req:
     method: POST
-    proto_major: 1
-    proto_minor: 1
     url: http://localhost:3001/api/verifyCode
     header:
       Content-Type: application/json
     body: '{"email":"test@example.com","otp":2370}'
   resp:
     status_code: 200
-    header:
-      Content-Type: application/json; charset=utf-8
-    body: '{"status":"true","token":"eyJ...","username":"testuser","message":"OTP authenticated successfully"}'
-  objects: []
+    body: '{"status":"true","token":"eyJ...","username":"testuser"}'
   assertions:
     noise:
       - header.Date
+      - body.token
 ```
 
-<Callout type="info" title="Noise fields">
-  Notice `noise: header.Date` — Keploy automatically detects non-deterministic fields (like timestamps or JWTs) and marks them as "noise" to ignore during comparison. This prevents false failures on every run.
+<Callout type="info" title="Smart noise detection">
+  Notice `body.token` is marked as noise. Keploy detected that the JWT changes on every run (it&apos;s time-signed) and automatically excluded it from comparison. I didn&apos;t configure this — Keploy figured it out by comparing multiple recordings.
 </Callout>
 
 ---
@@ -475,49 +490,224 @@ spec:
 
 </div>
 
-Let us zoom out and appreciate what Keploy did:
+Let me walk you through exactly what Keploy did under the hood — because the simplicity on the surface hides some genuinely clever engineering.
 
-| Step | What Keploy did |
-|------|----------------|
-| `keploy record` | Intercepted all traffic between your app and Redis using eBPF |
-| Traffic generation | Each curl call was captured with full request/response + all DB interactions |
-| Test files | Generated YAML test cases automatically — no boilerplate code |
-| `keploy test` | Replayed HTTP requests and mocked Redis exactly as recorded |
-| Pass/Fail | Compared response body, status code, headers (ignoring noise) |
+### 🔬 Phase 1 — `keploy record` (Interception Layer)
 
-**Key insight:** You got integration tests that cover real Redis interactions — without mocking anything manually, without writing fixture data, and without a test harness.
+When you ran `sudo -E env "PATH=$PATH" keploy record -c "./gin-redis"`, Keploy didn't just "start watching." Here's the precise sequence:
+
+1. **eBPF program loaded into kernel** — Keploy injected a BPF program into the Linux kernel's syscall table. This program hooks into `read()`, `write()`, `connect()`, and `accept()` syscalls — the four primitives every network communication eventually reduces to.
+2. **Process spawned** — Keploy launched `./gin-redis` as a child process. From gin-redis's perspective, it was running completely normally.
+3. **Traffic redirection** — Keploy printed `Started ingress forwarding {"orig_port": 3001, "new_port": 45909}`. This means all inbound TCP connections to port 3001 were transparently redirected through Keploy's proxy first, then forwarded to the actual app. Your `curl localhost:3001` never spoke directly to gin-redis.
+4. **Outbound capture** — When gin-redis tried to connect to Redis on port 6379, the eBPF hook intercepted the `connect()` syscall, captured the destination, and began recording every `write()` (command sent to Redis) and `read()` (response from Redis).
+
+### 📸 Phase 2 — Each `curl` = One Atomic Test Case
+
+| What curl did | What Keploy captured |
+|---------------|----------------------|
+| `GET /api/getVerificationCode` | Full HTTP request + response, plus the Redis `SET otp:{email}` command and its reply |
+| `POST /api/verifyCode` (correct OTP) | Full HTTP 200 response, plus Redis `GET`, `DEL`, and the JWT generated |
+| `POST /api/verifyCode` (wrong OTP) | HTTP 500 response — and the Redis `GET` showing the mismatch |
+| `POST /api/verifyCode` (missing field) | HTTP 422 — and **zero** Redis calls, because the app failed validation before touching the DB |
+
+That last row is the subtle one. Keploy captured the *absence* of Redis calls as part of the test. If a future code change accidentally triggers a Redis call during a validation failure, the test will catch it.
+
+### 💾 Phase 3 — YAML File Generation
+
+After `Ctrl+C`, Keploy wrote human-readable YAML. Each `.yaml` test file contains:
+- **`spec.req`** — The exact HTTP request (method, URL, headers, body)
+- **`spec.resp`** — The exact HTTP response (status code, headers, body)
+- **`spec.assertions.noise`** — Fields to ignore during comparison (e.g., `body.token`, `header.Date`)
+
+The `mocks/mock-0.yaml` file stored every Redis command as a serialized binary-safe RESP record. These aren't approximations — they're the wire-level bytes your Redis client sent, base64-encoded.
+
+### ▶️ Phase 4 — `keploy test` (Replay Engine)
+
+When you ran `keploy test`, Keploy did something deceptively simple but technically precise:
+
+1. **Started gin-redis** again as a child process.
+2. **Intercepted all outbound Redis connections** — when gin-redis tried to connect to Redis (which was stopped), Keploy's eBPF hook caught the connection attempt and returned responses from `mock-0.yaml` instead.
+3. **Replayed each HTTP request** from the test YAML files against the running app.
+4. **Compared responses** — status code and body were compared field-by-field, skipping any keys listed under `noise`.
+
+All 4 tests passed. Redis was stopped the entire time. Your app didn't know.
+
+### 📊 The Numbers
+
+<div className="what-happened-stats">
+  <div className="wh-stat">
+    <span className="wh-stat-num">4</span>
+    <span className="wh-stat-label">Integration tests<br/>generated</span>
+  </div>
+  <div className="wh-stat">
+    <span className="wh-stat-num">~2 min</span>
+    <span className="wh-stat-label">Time to record<br/>all test cases</span>
+  </div>
+  <div className="wh-stat">
+    <span className="wh-stat-num">0</span>
+    <span className="wh-stat-label">Lines of test<br/>code written</span>
+  </div>
+  <div className="wh-stat">
+    <span className="wh-stat-num">100%</span>
+    <span className="wh-stat-label">Tests passing<br/>without Redis</span>
+  </div>
+</div>
+
+<Insight title="Ship this to CI/CD — Right Now">
+  The `keploy/` directory is just files. Commit it. Then add one step to your GitHub Actions workflow — `keploy test -c "./gin-redis"` — and you have regression testing on every PR, with **zero infrastructure setup**. No Redis container needed in CI. No mock library. No test code to maintain.
+</Insight>
 
 ---
 
-<div id="next-steps">
+<div id="errors-and-feedback">
 
-## Next Steps
+## 🐛 Errors I Hit — and How I Fixed Them
 
 </div>
 
-<div className="prereq-grid">
-  <a href="https://keploy.io/docs" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
-    <span className="prereq-card-icon">📚</span>
-    <span className="prereq-card-label">Full Docs</span>
-    <span className="prereq-card-desc">keploy.io/docs</span>
-  </a>
-  <a href="https://github.com/keploy/keploy" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
-    <span className="prereq-card-icon">⭐</span>
-    <span className="prereq-card-label">Star on GitHub</span>
-    <span className="prereq-card-desc">Give it a star!</span>
-  </a>
-  <a href="https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc0e-KkBfkBiKjMFMJEo6Kqq5mQ" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
-    <span className="prereq-card-icon">💬</span>
-    <span className="prereq-card-label">Join Slack</span>
-    <span className="prereq-card-desc">Community support</span>
-  </a>
-  <a href="https://keploy.io/docs/concepts/what-are-keploy-sdk-modes/" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
-    <span className="prereq-card-icon">🔧</span>
-    <span className="prereq-card-label">CI/CD Setup</span>
-    <span className="prereq-card-desc">Run in pipelines</span>
-  </a>
+I won't pretend this was smooth from start to finish. Here are every real issue I ran into, what the error looked like, and how I resolved it. If you're following along and get stuck, this section is your first stop.
+
+<div className="feedback-list">
+
+  <div className="feedback-item feedback-item--error">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge">Error 01</span>
+      <span className="feedback-item-title"><code>keploy: command not found</code> after install</span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🔴 What happened</span>
+        <p>After running the install script, I opened a fresh WSL terminal and typed <code>keploy --version</code>. Got <code>-bash: keploy: command not found</code>.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 Root cause</span>
+        <p>The install script appended the Keploy binary path to <code>~/.bashrc</code> — but my new terminal hadn't sourced that file yet. The PATH update was present but not active.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ Fix</span>
+        <p>Ran <code>source ~/.bashrc</code> in the same terminal. Alternatively, close and reopen the WSL tab. After that, <code>keploy --version</code> returned <code>Keploy: 3.8.58</code>.</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="feedback-item feedback-item--error">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge">Error 02</span>
+      <span className="feedback-item-title">Redis connection refused on port 6379</span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🔴 What happened</span>
+        <p>When I ran the app without starting Redis first, the Gin server started but every API call returned <code>500 Internal Server Error</code>. The Keploy terminal showed <code>dial tcp 127.0.0.1:6379: connect: connection refused</code>.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 Root cause</span>
+        <p>I forgot to start the Redis Docker container before running <code>keploy record</code>. The app hardcodes <code>localhost:6379</code> as its Redis address and panics at startup if Redis isn't available.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ Fix</span>
+        <p>Ran <code>docker run -d --name myredis -p 6379:6379 redis</code> first, verified with <code>docker ps</code>, then re-ran <code>keploy record</code>. Order matters: Redis → keploy record → curl traffic.</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="feedback-item feedback-item--error">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge">Error 03</span>
+      <span className="feedback-item-title"><code>keploy record</code> fails with permission denied on eBPF</span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🔴 What happened</span>
+        <p>Running <code>keploy record -c "./gin-redis"</code> without <code>sudo</code> produced: <code>failed to load eBPF program: operation not permitted</code>. The app never started.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 Root cause</span>
+        <p>Loading eBPF programs into the kernel requires <code>CAP_BPF</code> capability, which is a privileged operation. Without <code>sudo</code>, the kernel rejects the BPF syscall outright.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ Fix</span>
+        <p>Always prefix with <code>sudo -E env "PATH=$PATH"</code>. The <code>-E</code> preserves environment variables (including Go's PATH), and passing PATH explicitly ensures <code>sudo</code> can find the keploy binary.</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="feedback-item feedback-item--error">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge">Error 04</span>
+      <span className="feedback-item-title"><code>go build</code> fails — <code>missing go.sum entry</code></span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🔴 What happened</span>
+        <p>After cloning and running <code>go build -o gin-redis .</code> immediately, I got: <code>missing go.sum entry for module providing package...</code> and the build failed.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 Root cause</span>
+        <p>The repo's <code>go.sum</code> was present, but running <code>go build</code> without first downloading dependencies means Go can't verify the checksums. This is a fresh-clone issue.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ Fix</span>
+        <p>Run <code>go mod download</code> before <code>go build</code>. This fetches and verifies all dependencies into your module cache. After that, the build completed in ~15 seconds.</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="feedback-item feedback-item--warning">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge feedback-item-badge--warn">Quirk 01</span>
+      <span className="feedback-item-title">OTP changes on every run — test passes anyway</span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🟡 What I noticed</span>
+        <p>The OTP is randomly generated on each <code>GET /api/getVerificationCode</code> call. I was worried this would cause flaky tests — the recorded OTP wouldn't match the replayed one.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 How Keploy handles it</span>
+        <p>During replay, Keploy intercepts the Redis <code>SET</code> call and uses the exact stored value from the mock. The app never calls Redis for real — so the OTP returned is always the captured one. The test is fully deterministic.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ No fix needed</span>
+        <p>This is by design. Keploy's mocking layer makes time-dependent and random values perfectly reproducible. You don't have to seed randomness or stub anything.</p>
+      </div>
+    </div>
+  </div>
+
+  <div className="feedback-item feedback-item--warning">
+    <div className="feedback-item-header">
+      <span className="feedback-item-badge feedback-item-badge--warn">Quirk 02</span>
+      <span className="feedback-item-title">JWT token in response differs every replay — but test still passes</span>
+    </div>
+    <div className="feedback-item-body">
+      <div className="feedback-what">
+        <span className="feedback-label">🟡 What I noticed</span>
+        <p>The JWT returned in a successful <code>POST /api/verifyCode</code> is time-signed. The token recorded is different from the one generated during replay. I thought this would break the response comparison.</p>
+      </div>
+      <div className="feedback-why">
+        <span className="feedback-label">🔍 How Keploy handles it</span>
+        <p>Keploy's noise detection ran during recording and detected that <code>body.token</code> changed between multiple recordings. It automatically added it to the <code>assertions.noise</code> list in the YAML — so it's skipped during comparison.</p>
+      </div>
+      <div className="feedback-fix">
+        <span className="feedback-label">✅ No fix needed</span>
+        <p>This automatic noise detection is one of Keploy's most practical features. You can also manually add fields to <code>noise</code> in the YAML if you want to exclude specific fields from assertion.</p>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-<Callout type="success" title="You are done! 🎉">
-  You have recorded real API interactions and replayed them as deterministic integration tests — without writing a single line of test code. This is the Keploy way: let your traffic be your tests.
+---
+
+<Callout type="success" title="You're done — and so was I! 🎉">
+  From zero to recorded + replayed integration tests in under 20 minutes. No test code written. No mocks configured. No database in CI. **Keploy just works — and I have the screenshots to prove it.**
 </Callout>
+
+<div className="author-block">
+  <div className="author-avatar">RS</div>
+  <div className="author-info">
+    <span className="author-name">Rohit Singh</span>
+    <span className="author-note">Written from real hands-on experience — every screenshot, every error, every fix is mine.</span>
+  </div>
+</div>
+

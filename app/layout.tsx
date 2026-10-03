@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sidebar } from "@/components/Sidebar";
+import { ProgressBar } from "@/components/ProgressBar";
+import { BackToTop } from "@/components/BackToTop";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark" suppressHydrationWarning>
       <body className={`${inter.variable} font-sans`}>
+        <ProgressBar />
         <header className="site-header">
           <div className="header-inner">
             <div className="header-brand">
@@ -83,6 +86,7 @@ export default function RootLayout({
             {children}
           </main>
         </div>
+        <BackToTop />
       </body>
     </html>
   );
