@@ -394,6 +394,7 @@ body {
   color: var(--text-secondary);
   max-width: 680px;
   line-height: 1.75;
+  margin-bottom: 0;
 }
 
 .tag-list {
@@ -729,6 +730,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 1.5rem;
+  display: block;
 }
 
 .arch-flow {

@@ -14,11 +14,11 @@ export const metadata = {
     <span className="doc-hero-meta-item">🧑‍💻 Beginner-friendly</span>
     <span className="doc-hero-meta-item">🐳 Requires Docker and WSL</span>
   </div>
-  <p className="doc-hero-desc">
+  <div className="doc-hero-desc">
     In this hands-on tutorial, you will use Keploy to automatically record real API calls
     to a Gin + Redis application and replay them as deterministic integration tests —
     zero test code required.
-  </p>
+  </div>
   <div className="tag-list">
     <span className="tag">Go</span>
     <span className="tag">Gin</span>
@@ -44,7 +44,7 @@ Keploy is an **open-source, no-code testing platform** for backend developers. H
 Think of it as a flight recorder for your API: it captures exactly what happened, then lets you replay it perfectly every time.
 
 <div className="arch-diagram">
-  <p className="arch-diagram-title">How Keploy intercepts and replays traffic</p>
+  <div className="arch-diagram-title">How Keploy intercepts and replays traffic</div>
   <div className="arch-flow">
     <div className="arch-node arch-node-app">Your Go App<br /><small>(Gin)</small></div>
     <span className="arch-arrow">⟷</span>
