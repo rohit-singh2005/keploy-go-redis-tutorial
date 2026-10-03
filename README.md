@@ -3,7 +3,7 @@
 A single-page documentation website built with **Next.js** and **MDX**, walking developers through testing a Go (Gin + Redis) application using Keploy — from zero to recorded + replayed API tests.
 
 ## 🔗 Live Demo
-keploy-go-redis-tutorial.vercel.app
+[keploy-go-redis-tutorial.vercel.app](https://keploy-go-redis-tutorial.vercel.app/)
 
 
 ---
