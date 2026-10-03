@@ -1,0 +1,523 @@
+import { Callout } from "@/components/Callout";
+
+export const metadata = {
+  title: "Testing a Go App with Keploy | Gin + Redis Tutorial",
+};
+
+<div className="doc-hero" id="overview">
+  <div className="doc-badge">🐰 Keploy Tutorial · Go + Redis</div>
+  <h1>
+    Test Your Go App <span className="gradient">Without Writing Tests</span>
+  </h1>
+  <div className="doc-hero-meta">
+    <span className="doc-hero-meta-item">⏱️ ~20 minutes</span>
+    <span className="doc-hero-meta-item">🧑‍💻 Beginner-friendly</span>
+    <span className="doc-hero-meta-item">🐳 Requires Docker and WSL</span>
+  </div>
+  <p className="doc-hero-desc">
+    In this hands-on tutorial, you will use Keploy to automatically record real API calls
+    to a Gin + Redis application and replay them as deterministic integration tests —
+    zero test code required.
+  </p>
+  <div className="tag-list">
+    <span className="tag">Go</span>
+    <span className="tag">Gin</span>
+    <span className="tag">Redis</span>
+    <span className="tag">Docker</span>
+    <span className="tag">WSL</span>
+    <span className="tag">API Testing</span>
+  </div>
+</div>
+
+<div id="what-is-keploy">
+
+## What is Keploy?
+
+</div>
+
+Keploy is an **open-source, no-code testing platform** for backend developers. Here's the core idea:
+
+- Your app talks to external services (databases, APIs, queues) all the time.
+- Keploy sits between your app and those services, **recording** every interaction.
+- Later, it **replays** those recorded calls as fully isolated integration tests — no real Redis needed, no flaky network calls.
+
+Think of it as a flight recorder for your API: it captures exactly what happened, then lets you replay it perfectly every time.
+
+<div className="arch-diagram">
+  <p className="arch-diagram-title">How Keploy intercepts and replays traffic</p>
+  <div className="arch-flow">
+    <div className="arch-node arch-node-app">Your Go App<br /><small>(Gin)</small></div>
+    <span className="arch-arrow">⟷</span>
+    <div className="arch-node arch-node-keploy">🐰 Keploy<br /><small>(Agent)</small></div>
+    <span className="arch-arrow">⟷</span>
+    <div className="arch-node arch-node-redis">Redis<br /><small>:6379</small></div>
+    <span className="arch-arrow">→</span>
+    <div className="arch-node arch-node-storage">Test Cases<br /><small>YAML files</small></div>
+  </div>
+</div>
+
+**Why is this useful for Go developers?**
+
+Writing integration tests for Go apps is tedious: you need test fixtures, mock libraries, and careful setup/teardown. Keploy removes all that friction. Your actual traffic *becomes* your test suite.
+
+---
+
+<div id="prerequisites">
+
+## Prerequisites
+
+</div>
+
+You will need the following on your **Windows** machine:
+
+<div className="prereq-grid">
+  <div className="prereq-card">
+    <span className="prereq-card-icon">🪟</span>
+    <span className="prereq-card-label">Windows 10/11</span>
+    <span className="prereq-card-desc">Build 19041+</span>
+  </div>
+  <div className="prereq-card">
+    <span className="prereq-card-icon">🐳</span>
+    <span className="prereq-card-label">Docker Desktop</span>
+    <span className="prereq-card-desc">WSL2 backend enabled</span>
+  </div>
+  <div className="prereq-card">
+    <span className="prereq-card-icon">🐧</span>
+    <span className="prereq-card-label">WSL2</span>
+    <span className="prereq-card-desc">Ubuntu 22.04 LTS</span>
+  </div>
+  <div className="prereq-card">
+    <span className="prereq-card-icon">🐹</span>
+    <span className="prereq-card-label">Go 1.21+</span>
+    <span className="prereq-card-desc">Inside WSL</span>
+  </div>
+  <div className="prereq-card">
+    <span className="prereq-card-icon">🔑</span>
+    <span className="prereq-card-label">Keploy Account</span>
+    <span className="prereq-card-desc">Free at keploy.io</span>
+  </div>
+  <div className="prereq-card">
+    <span className="prereq-card-icon">📦</span>
+    <span className="prereq-card-label">Git</span>
+    <span className="prereq-card-desc">For cloning repos</span>
+  </div>
+</div>
+
+<Callout type="info" title="Windows Note">
+  Keploy uses Linux kernel features (eBPF) to intercept network calls. On Windows, it must run **inside WSL2** — not in PowerShell or CMD. All commands from Step 2 onward should be run in your Ubuntu WSL terminal.
+</Callout>
+
+---
+
+<div id="step-1-install-wsl">
+
+## Step 1 — Install WSL
+
+</div>
+
+If you already have WSL with Ubuntu, skip to Step 2.
+
+Open **PowerShell as Administrator** and run:
+
+```powershell
+wsl --install -d Ubuntu-22.04
+```
+
+This downloads Ubuntu 22.04, installs it, and prompts you to create a username and password. After it completes, verify:
+
+```powershell
+wsl --list --running
+```
+
+Then open your Ubuntu terminal — you will use it for everything that follows.
+
+<Callout type="tip" title="Docker Desktop Integration">
+  In Docker Desktop → Settings → Resources → WSL Integration, enable integration with Ubuntu-22.04. This lets Docker commands work from inside your WSL terminal.
+</Callout>
+
+---
+
+<div id="step-2-install-keploy">
+
+## Step 2 — Install Keploy
+
+</div>
+
+Inside your **Ubuntu WSL terminal**, run the one-line installer:
+
+```bash
+curl --silent -O -L https://keploy.io/install.sh && source install.sh
+```
+
+This downloads the Keploy binary, installs it to `/usr/local/bin`, and displays the Keploy ASCII banner — a good sign it worked. Verify:
+
+```bash
+keploy --version
+# Expected output: Keploy: 3.x.x
+```
+
+<Callout type="warning" title="sudo required for recording">
+  Keploy hooks into the Linux network stack using eBPF, which requires elevated privileges. When you run `keploy record`, you will need `sudo`. This is only for the record/test commands, not for general use.
+</Callout>
+
+### Authenticate with your API key
+
+Sign up at [app.keploy.io](https://app.keploy.io), go to Settings → API Keys → Generate new token.
+
+```bash
+keploy login --api-key YOUR_API_KEY
+```
+
+You should see:
+
+```
+API key verified successfully!
+You are on the Keploy Free plan.
+```
+
+---
+
+<div id="step-3-clone-the-app">
+
+## Step 3 — Clone the Sample App
+
+</div>
+
+We are using Keploy's official **Gin + Redis** sample: a minimal user authentication service with two endpoints:
+
+- `GET /api/getVerificationCode` — generates and caches an OTP in Redis
+- `POST /api/verifyCode` — validates the OTP and returns a JWT token
+
+```bash
+mkdir -p ~/keploy-demo && cd ~/keploy-demo
+git clone https://github.com/keploy/samples-go.git
+cd samples-go/gin-redis
+```
+
+Take a moment to look around:
+
+```bash
+ls
+```
+
+```text
+Dockerfile     README.md    config     controllers
+docker-compose.yml  go.mod    go.sum    helpers
+img    main.go    middlewares    routes    server    services    structure    utils
+```
+
+Key files:
+- **`main.go`** — the entry point, calls `server.Init()`
+- **`docker-compose.yml`** — defines the Redis service
+- **`controllers/`** — the actual OTP logic
+
+<Callout type="info" title="About the app">
+  This app generates a 4-digit OTP, stores it in Redis with a TTL, and verifies it when the user posts it back. Keploy will intercept and record all Redis interactions, so during test replay, no real Redis is needed.
+</Callout>
+
+---
+
+<div id="step-4-start-redis">
+
+## Step 4 — Start Redis
+
+</div>
+
+The app needs Redis running. Start it with Docker:
+
+```bash
+docker run -d --name myredis -p 6379:6379 redis
+```
+
+Confirm it is up:
+
+```bash
+docker ps
+```
+
+```text
+CONTAINER ID   IMAGE     COMMAND                  CREATED         STATUS         PORTS                    NAMES
+743218d648ec   redis:7   "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:6379->6379/tcp   myredis
+```
+
+<Callout type="tip" title="Why not docker-compose?">
+  The repo's docker-compose.yml builds the Go app as a Docker image too. For Keploy's local (non-Docker) mode, we run Redis standalone and build the Go binary ourselves — this gives Keploy direct access to the process via eBPF.
+</Callout>
+
+---
+
+<div id="step-5-build-the-binary">
+
+## Step 5 — Build the Go Binary
+
+</div>
+
+First, install Go inside WSL if you haven't:
+
+```bash
+sudo snap install go --classic
+go version
+# go version go1.27.1 linux/amd64
+```
+
+Then download dependencies and build the application:
+
+```bash
+cd ~/keploy-demo/samples-go/gin-redis
+go mod download
+go build -o gin-redis .
+```
+
+This produces a `gin-redis` binary in your current directory.
+
+<Callout type="success" title="Quick check">
+  Run `ls -la gin-redis` — you should see a file around 15-20 MB. If not, check your Go installation with `go version`.
+</Callout>
+
+---
+
+<div id="step-6-record-test-cases">
+
+## Step 6 — Record Test Cases
+
+</div>
+
+This is the magic. Run your app **wrapped by Keploy**, which intercepts every network call your app makes:
+
+```bash
+sudo -E env "PATH=$PATH" keploy record -c "./gin-redis"
+```
+
+Let us break down this command:
+- **`sudo -E`** — runs with root privileges, preserving your environment (including `PATH` and the Keploy API key)
+- **`env "PATH=$PATH"`** — ensures sudo can find `keploy` in your PATH
+- **`keploy record`** — starts Keploy in recording mode
+- **`-c "./gin-redis"`** — the command Keploy should wrap and launch
+
+When it starts, you will see:
+
+```text
+🐰 Keploy (agent): INFO   Keploy agent is ready to record test cases and mocks.
+🐰 Keploy (agent): INFO   Starting Application: {"executing_cmd": "/usr/bin/sh -c ./gin-redis"}
+[GIN-debug] GET    /api/getVerificationCode --> ...
+[GIN-debug] POST   /api/verifyCode          --> ...
+🐰 Keploy (agent): INFO   Started ingress forwarding {"orig_port": 3001, "new_port": 45909}
+```
+
+Your app is running. Keploy is watching every call it makes.
+
+<Callout type="danger" title="Keep this terminal open!">
+  Do not close this terminal. Keploy records tests as long as this process is running. Stop it with Ctrl+C when you are done generating traffic.
+</Callout>
+
+---
+
+<div id="step-7-generate-traffic">
+
+## Step 7 — Generate Traffic
+
+</div>
+
+Open a **second WSL terminal** and hit the API a few times to create diverse test cases:
+
+**Get an OTP:**
+
+```bash
+OTP=$(curl -s "http://localhost:3001/api/getVerificationCode?email=test@example.com&username=testuser" \
+  | grep -o '"otp":[0-9]*' | grep -o '[0-9]*')
+echo "OTP is: $OTP"
+```
+
+**Verify with the correct OTP (should succeed — HTTP 200):**
+
+```bash
+curl -i -X POST http://localhost:3001/api/verifyCode \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"test@example.com\",\"otp\":$OTP}"
+```
+
+Expected response:
+
+```json
+{"status":"true","token":"eyJhbGciOi...","username":"testuser","message":"OTP authenticated successfully"}
+```
+
+**Verify with an incorrect OTP (should fail — HTTP 500):**
+
+```bash
+curl -i -X POST http://localhost:3001/api/verifyCode \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","otp":1}'
+```
+
+Expected response:
+
+```json
+{"status":"false","message":"OTP didn't match, email isn't verified"}
+```
+
+**Send a malformed request (should return 422):**
+
+```bash
+curl -i -X POST http://localhost:3001/api/verifyCode \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com"}'
+```
+
+<Callout type="tip" title="Record diverse cases">
+  Each different API response you trigger (200, 500, 422) becomes a separate test case. The more edge cases you hit now, the more comprehensive your test suite will be — without writing a single line of test code!
+</Callout>
+
+Back in the first terminal, you will see Keploy logging each captured test:
+
+```text
+🐰 Keploy: INFO 🟠 Keploy has captured test cases for the user's application.
+  {"path": ".../keploy/test-set-5/tests", "testcase name": "get-api-getverificationcode-1"}
+🐰 Keploy: INFO 🟠 Keploy has captured test cases for the user's application.
+  {"path": ".../keploy/test-set-5/tests", "testcase name": "post-api-verifycode-1"}
+```
+
+When satisfied, **press Ctrl+C** in the first terminal to stop recording.
+
+---
+
+<div id="step-8-run-the-tests">
+
+## Step 8 — Run the Tests
+
+</div>
+
+Now the fun part — replay everything:
+
+```bash
+sudo -E env "PATH=$PATH" keploy test -c "./gin-redis" --delay 5
+```
+
+The `--delay 5` gives the app 5 seconds to fully start before Keploy fires the first test.
+
+Keploy will:
+1. Start your `gin-redis` binary
+2. **Mock all Redis calls** using the recorded responses (no real Redis needed!)
+3. Send each recorded HTTP request
+4. Compare the actual response against what was recorded
+
+You will see output like:
+
+```text
+🐰 Keploy (agent): INFO   Keploy agent is ready to record test cases and mocks.
+🐰 Keploy (agent): INFO   Starting Application: {"executing_cmd": "./gin-redis"}
+...
+✅ Test Passed: get-api-getverificationcode-1
+✅ Test Passed: post-api-verifycode-1
+✅ Test Passed: post-api-verifycode-2
+✅ Test Passed: post-api-verifycode-3
+```
+
+---
+
+<div id="understanding-the-output">
+
+## Understanding the Output
+
+</div>
+
+### Where are the test files?
+
+Keploy stores everything as human-readable YAML in a `keploy/` directory:
+
+```text
+keploy/
+  test-set-5/
+    tests/
+      get-api-getverificationcode-1.yaml
+      post-api-verifycode-1.yaml
+      post-api-verifycode-2.yaml
+    mocks/
+      mock-0.yaml
+```
+
+### What does a test case YAML look like?
+
+```yaml
+version: api.keploy.io/v1beta1
+kind: Http
+name: post-api-verifycode-1
+spec:
+  metadata: {}
+  req:
+    method: POST
+    proto_major: 1
+    proto_minor: 1
+    url: http://localhost:3001/api/verifyCode
+    header:
+      Content-Type: application/json
+    body: '{"email":"test@example.com","otp":2370}'
+  resp:
+    status_code: 200
+    header:
+      Content-Type: application/json; charset=utf-8
+    body: '{"status":"true","token":"eyJ...","username":"testuser","message":"OTP authenticated successfully"}'
+  objects: []
+  assertions:
+    noise:
+      - header.Date
+```
+
+<Callout type="info" title="Noise fields">
+  Notice `noise: header.Date` — Keploy automatically detects non-deterministic fields (like timestamps or JWTs) and marks them as "noise" to ignore during comparison. This prevents false failures on every run.
+</Callout>
+
+---
+
+<div id="what-just-happened">
+
+## What Just Happened?
+
+</div>
+
+Let us zoom out and appreciate what Keploy did:
+
+| Step | What Keploy did |
+|------|----------------|
+| `keploy record` | Intercepted all traffic between your app and Redis using eBPF |
+| Traffic generation | Each curl call was captured with full request/response + all DB interactions |
+| Test files | Generated YAML test cases automatically — no boilerplate code |
+| `keploy test` | Replayed HTTP requests and mocked Redis exactly as recorded |
+| Pass/Fail | Compared response body, status code, headers (ignoring noise) |
+
+**Key insight:** You got integration tests that cover real Redis interactions — without mocking anything manually, without writing fixture data, and without a test harness.
+
+---
+
+<div id="next-steps">
+
+## Next Steps
+
+</div>
+
+<div className="prereq-grid">
+  <a href="https://keploy.io/docs" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
+    <span className="prereq-card-icon">📚</span>
+    <span className="prereq-card-label">Full Docs</span>
+    <span className="prereq-card-desc">keploy.io/docs</span>
+  </a>
+  <a href="https://github.com/keploy/keploy" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
+    <span className="prereq-card-icon">⭐</span>
+    <span className="prereq-card-label">Star on GitHub</span>
+    <span className="prereq-card-desc">Give it a star!</span>
+  </a>
+  <a href="https://join.slack.com/t/keploy/shared_invite/zt-12rfbvc0e-KkBfkBiKjMFMJEo6Kqq5mQ" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
+    <span className="prereq-card-icon">💬</span>
+    <span className="prereq-card-label">Join Slack</span>
+    <span className="prereq-card-desc">Community support</span>
+  </a>
+  <a href="https://keploy.io/docs/concepts/what-are-keploy-sdk-modes/" target="_blank" rel="noopener noreferrer" className="prereq-card" style={{textDecoration: 'none'}}>
+    <span className="prereq-card-icon">🔧</span>
+    <span className="prereq-card-label">CI/CD Setup</span>
+    <span className="prereq-card-desc">Run in pipelines</span>
+  </a>
+</div>
+
+<Callout type="success" title="You are done! 🎉">
+  You have recorded real API interactions and replayed them as deterministic integration tests — without writing a single line of test code. This is the Keploy way: let your traffic be your tests.
+</Callout>
